@@ -129,9 +129,12 @@ namespace dasmig
         // Try loading every possible names file from the received resource path.
         void load(const std::filesystem::path &resource_path)
         {
-            for (auto &f : std::filesystem::recursive_directory_iterator(resource_path))
-                if (f.is_regular_file() && (f.path().extension() == ".names"))
-                    parse_file(f);
+            if (std::filesystem::exists(resource_path) && std::filesystem::is_directory(resource_path))
+            {
+                for (auto &f : std::filesystem::recursive_directory_iterator(resource_path))
+                    if (f.is_regular_file() && (f.path().extension() == ".names"))
+                        parse_file(f);
+            }
         };
 
     private:
