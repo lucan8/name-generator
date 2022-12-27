@@ -1,9 +1,11 @@
-#include <iostream>
 #include "../dasmig/namegen.hpp"
+#include <iostream>
+
 
 int main()
 {
-    std::cout << dasmig::ng::instance().get_name().append_surname() << std::endl;
+    std::wcout << dasmig::ng::instance().get_name().append_surname()
+               << std::endl;
 
     return 0;
 }
