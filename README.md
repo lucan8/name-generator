@@ -17,6 +17,10 @@ The library currently supports the following:
 
 - **Full Name**. Easily append one or more names and surnames to generate a full name with an intuitive API.
 
+- **Deterministic Generation**. The user is capable of seeding the random generator. 
+
+- **ISO 2-Letter Code**. API allowing requests through countries 2-Letter code along the library enum.
+
 - **Countries Supported**. Currently, the following countries are supported by the library and contain a relevant database (unchecked countries are currently lacking or contain an incomplete database): 
   - [X] Australia
   - [X] Argentina
@@ -44,7 +48,7 @@ The library currently supports the following:
 
 ## Integration
  
-[`namegen.hpp`](https://github.com/dasmig/name-generator/blob/master/dasmig/namegen.hpp) is the single required file [released here](https://github.com/dasmig/name-generator/releases). You need to add
+[`namegen.hpp`](https://github.com/dasmig/name-generator/blob/master/dasmig/namegen.hpp) contains all the library code [released here](https://github.com/dasmig/name-generator/releases). You need to add
 
 ```cpp
 #include <dasmig/namegen.hpp>
@@ -56,6 +60,8 @@ using ng = dasmig::ng;
 to the files you want to generate names/surnames and set the necessary switches to enable C++17 (e.g., `-std=c++17` for GCC and Clang).
 
 Additionally, you must supply the name generator with the [`resources`](https://github.com/dasmig/name-generator/tree/master/resources) folder also available in the [release](https://github.com/dasmig/name-generator/releases).
+
+As of v0.2, the library makes use of a [`random generation library`](https://github.com/effolkronium/random) by [effolkronium](https://github.com/effolkronium). For the convenience of the user, the header-only file containing the implementation was added to this repository.
 
 ## Usage
 
@@ -89,11 +95,7 @@ std::wcout << ng::instance().get_name(ng::gender::f, ng::culture::french).append
 
 ## Planned Features
 
-- **Deterministic Generation**. The user is capable of seeding the random generator.
-
 - **Specialized Support for Surnames**. Appropriate handling of gendered surnames in some cultures.
-
-- **ISO 2-Letter Code**. API allowing requests through countries 2-Letter code along the library enum.
 
 ### Disclaimer
 
