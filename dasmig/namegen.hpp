@@ -73,7 +73,7 @@ class ng
         name append_name()
         {
             _internal_container.push_back(
-                ng::instance().solver(true, _gender, _culture, _random));
+                ng::instance().solver(true, _gender, _culture));
             _internal_string.append(L" ").append(_internal_container.back());
 
             return *this;
@@ -84,7 +84,7 @@ class ng
         name append_name(culture culture)
         {
             _internal_container.push_back(
-                ng::instance().solver(true, _gender, culture, _random));
+                ng::instance().solver(true, _gender, culture));
             _internal_string.append(L" ").append(_internal_container.back());
 
             return *this;
@@ -94,7 +94,7 @@ class ng
         name append_surname()
         {
             _internal_container.push_back(
-                ng::instance().solver(false, _gender, _culture, _random));
+                ng::instance().solver(false, _gender, _culture));
             _internal_string.append(L" ").append(_internal_container.back());
 
             return *this;
@@ -104,7 +104,7 @@ class ng
         name append_surname(culture culture)
         {
             _internal_container.push_back(
-                (ng::instance().solver(false, _gender, culture, _random)));
+                (ng::instance().solver(false, _gender, culture)));
             _internal_string.append(L" ").append(_internal_container.back());
 
             return *this;
@@ -133,11 +133,9 @@ class ng
       private:
         // Private constructor, this is mostly a helper class to the name
         // generator, not the intended API.
-        name(std::wstring name_str, const gender gender, const culture culture,
-             std::optional<effolkronium::random_local> engine)
+        name(std::wstring name_str, const gender gender, const culture culture)
             : _internal_string(std::move(name_str)), _gender(gender),
-              _culture(culture), _random(engine),
-              _internal_container({_internal_string})
+              _culture(culture), _internal_container({_internal_string})
         {
         }
 
@@ -152,9 +150,6 @@ class ng
 
         // Internal indicator of original culture of the first generated name.
         culture _culture;
-
-        // Random number of the first generated name.
-        std::optional<effolkronium::random_local> _random;
 
         // Allows name generator to construct names.
         friend class ng;
@@ -205,35 +200,16 @@ class ng
     }
 
     // Generates a first name based on requested gender and culture.
-    [[nodiscard]] name get_name(
-        gender gender = gender::any, culture culture = culture::any,
-        std::optional<const std::uint_fast32_t> seed = std::nullopt) const
+    [[nodiscard]] name get_name(gender gender = gender::any,
+                                culture culture = culture::any) const
     {
-        return solver(true, gender, culture, random_engine(seed));
-    };
-
-    // Generates a first name based on requested gender and culture.
-    [[nodiscard]] name get_name(
-        gender gender, culture culture,
-        std::optional<effolkronium::random_local> random_engine) const
-    {
-        return solver(true, gender, culture, random_engine);
+        return solver(true, gender, culture);
     };
 
     // Generates a surname based on requested culture.
-    [[nodiscard]] name get_surname(
-        culture culture = culture::any,
-        std::optional<const std::uint_fast32_t> seed = std::nullopt) const
+    [[nodiscard]] name get_surname(culture culture = culture::any) const
     {
-        return solver(false, gender::any, culture, random_engine(seed));
-    };
-
-    // Generates a first name based on requested gender and culture.
-    [[nodiscard]] name get_surname(
-        culture culture,
-        std::optional<effolkronium::random_local> random_engine) const
-    {
-        return solver(false, gender::any, culture, random_engine);
+        return solver(false, gender::any, culture);
     };
 
     // Try loading every possible names file from the received resource path.
@@ -281,30 +257,23 @@ class ng
     ~ng() = default;
 
     // Contains logic to retrieve a random name/surname from the containers.
-    [[nodiscard]] name solver(
-        const bool is_name, gender requested_gender, culture requested_culture,
-        std::optional<effolkronium::random_local> random_engine) const
+    [[nodiscard]] name solver(const bool is_name, gender requested_gender,
+                              culture requested_culture) const
     {
-        // Switch between static call or local random engine call.
-        const auto& get_random{
-            [&](const std::size_t min, const std::size_t max) {
-                return random_engine.has_value()
-                           ? random_engine->get(min, max)
-                           : effolkronium::random_static::get(min, max);
-            }};
-
         // Randomly select a culture if necessary.
         requested_culture =
             (requested_culture == culture::any)
                 ? static_cast<culture>(
-                      get_random(0, static_cast<std::size_t>(culture::any) - 1))
+                      effolkronium::random_thread_local::get<std::size_t>(
+                          0, static_cast<std::size_t>(gender::any) - 1))
                 : requested_culture;
 
         // Randomly select gender if necessary.
         requested_gender =
             (requested_gender == gender::any)
                 ? static_cast<gender>(
-                      get_random(0, static_cast<std::size_t>(gender::any) - 1))
+                      effolkronium::random_thread_local::get<std::size_t>(
+                          0, static_cast<std::size_t>(gender::any) - 1))
                 : requested_gender;
 
         // Decides what container it will access.
@@ -315,61 +284,32 @@ class ng
             {
             case gender::m: {
                 // Randomly select a name of the requested gender and culture.
-                return {_culture_indexed_m_names.at(requested_culture)
-                            ->at(get_random(0, _culture_indexed_m_names
-                                                       .at(requested_culture)
-                                                       ->size() -
-                                                   1)),
-                        requested_gender, requested_culture, random_engine};
+                return {*effolkronium::random_thread_local::get(
+                            *_culture_indexed_m_names.at(requested_culture)),
+                        requested_gender, requested_culture};
             }
             case gender::f: {
                 // Randomly select a name of the requested gender and culture.
-                return {_culture_indexed_f_names.at(requested_culture)
-                            ->at(get_random(0, _culture_indexed_f_names
-                                                       .at(requested_culture)
-                                                       ->size() -
-                                                   1)),
-                        requested_gender, requested_culture, random_engine};
+                return {*effolkronium::random_thread_local::get(
+                            *_culture_indexed_f_names.at(requested_culture)),
+                        requested_gender, requested_culture};
             }
             default: {
                 // Randomly select a name of the requested gender and culture.
-                return {_culture_indexed_m_names.at(requested_culture)
-                            ->at(get_random(0, _culture_indexed_m_names
-                                                       .at(requested_culture)
-                                                       ->size() -
-                                                   1)),
-                        requested_gender, requested_culture, random_engine};
+                return {*effolkronium::random_thread_local::get(
+                            *_culture_indexed_m_names.at(requested_culture)),
+                        requested_gender, requested_culture};
             }
             }
         }
         else
         {
             // Randomly select a surname of the requested culture.
-            return {_culture_indexed_surnames.at(requested_culture)
-                        ->at(get_random(
-                            0, _culture_indexed_surnames.at(requested_culture)
-                                       ->size() -
-                                   1)),
-                    requested_gender, requested_culture, random_engine};
+            return {*effolkronium::random_thread_local::get(
+                        *_culture_indexed_surnames.at(requested_culture)),
+                    requested_gender, requested_culture};
         }
     };
-
-    static std::optional<const effolkronium::random_local> random_engine(
-        std::optional<const std::uint_fast32_t> seed)
-    {
-        // Local random engine, used only when a seed is specified by the
-        // caller.
-        std::optional<effolkronium::random_local> random_engine =
-            seed.has_value() ? std::make_optional<effolkronium::random_local>()
-                             : std::nullopt;
-
-        if (random_engine.has_value())
-        {
-            random_engine->seed(seed.value());
-        }
-
-        return random_engine;
-    }
 
     // Try parsing the names file and index it into our container.
     void parse_file(const std::filesystem::path& file)
