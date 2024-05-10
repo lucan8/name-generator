@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <unordered_map>
 
 // Written by Diego Dasso Migotto - diegomigotto at hotmail dot com
 namespace dasmig
@@ -116,6 +117,18 @@ class ng
             return _internal_string;
         }
 
+        //Added by lucan8, converting wstring to string
+        operator std :: string() const{
+            using convert_type = std :: codecvt_utf8<wchar_t>;
+            std :: wstring_convert<convert_type, wchar_t> converter;
+            return converter.to_bytes(_internal_string);
+        }
+
+        //Added by lucan8, a way to retrive a pair of the name and nationality of the person
+        operator std :: pair<std :: wstring, std :: string>() const{
+            return std :: make_pair(_internal_string, ng :: instance().culture_to_string(_culture));
+        }
+
         // Operator wstring list to allow for implicit conversion to list. //
         // NOLINTNEXTLINE(hicpp-explicit-conversions)
         operator std::list<std::wstring>() const
@@ -162,6 +175,17 @@ class ng
         return instance;
     }
 
+    //Added by lucan8, retriving nationality as string from map with key of type enum "culture"
+    std :: string culture_to_string(culture _culture)
+    {
+        try{
+            return _culture_string.at(_culture);
+        } catch(std :: out_of_range& e){
+            std :: cerr << "Error(culture_to_string): culture not found(" << (int)_culture << ")\n";
+            return "";
+        }
+    }
+
     // Translates ISO 3166 2-letter country code to internal culture enum,
     // unknown or unsupported code will be translated as any.
     static culture to_culture(const std::wstring& country_code)
@@ -206,6 +230,14 @@ class ng
         return solver(true, gender, culture);
     };
 
+    //Moved the following lines of code here for convinience(lucan8)
+    culture get_rand_culture() const{
+            return static_cast<culture>
+                                        (effolkronium::random_thread_local::get<std::size_t>
+                                            (0, static_cast<std::size_t>(culture::any) - 1)
+                                        );
+    }
+
     // Generates a surname based on requested culture.
     [[nodiscard]] name get_surname(culture culture = culture::any) const
     {
@@ -215,16 +247,24 @@ class ng
     // Try loading every possible names file from the received resource path.
     void load(const std::filesystem::path& resource_path)
     {
-        if (std::filesystem::exists(resource_path) &&
+        if (loaded == false && std::filesystem::exists(resource_path) &&
             std::filesystem::is_directory(resource_path))
         {
+            uint16_t nationality_index = 0;
             for (const auto& dir_entry :
                  std::filesystem::recursive_directory_iterator(resource_path))
             {
                 if (dir_entry.is_regular_file() &&
                     (dir_entry.path().extension() == ".names"))
                 {
+                    loaded = true;
                     parse_file(dir_entry);
+                }
+                //Added by lucan8, retriving nationality strings in a map
+                else{
+                    std :: string nationality = dir_entry.path().string();
+                    nationality = nationality.substr(nationality.find_last_of('\\') + 1);
+                    _culture_string[(culture)nationality_index ++] = nationality;
                 }
             }
         }
@@ -241,11 +281,17 @@ class ng
     // Maps for accessing male name through culture.
     std::map<culture, name_container_ptr> _culture_indexed_m_names;
 
+    //Added by lucan8, a way to get the string nationality using the enum culture
+    std :: unordered_map<culture, std :: string> _culture_string;
+
     // Maps for accessing female name through culture.
     std::map<culture, name_container_ptr> _culture_indexed_f_names;
 
     // Maps for accessing surname through culture.
     std::map<culture, name_container_ptr> _culture_indexed_surnames;
+
+    //Added by lucan8, a way to determine whether we already loaded everything
+    bool loaded = false;
 
     // Initialize random generator, no complicated processes.
     ng()
@@ -262,11 +308,7 @@ class ng
     {
         // Randomly select a culture if necessary.
         requested_culture =
-            (requested_culture == culture::any)
-                ? static_cast<culture>(
-                      effolkronium::random_thread_local::get<std::size_t>(
-                          0, static_cast<std::size_t>(gender::any) - 1))
-                : requested_culture;
+            (requested_culture == culture::any) ? get_rand_culture(): requested_culture;
 
         // Randomly select gender if necessary.
         requested_gender =
@@ -314,6 +356,7 @@ class ng
     // Try parsing the names file and index it into our container.
     void parse_file(const std::filesystem::path& file)
     {
+        //std :: cout << file << '\n';
         // Expected names file format is <ISO 3166 2-letter country code>,
         // <male|female|surname>, list of names.
         std::wifstream tentative_file(file);
